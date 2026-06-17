@@ -7,7 +7,9 @@
  "field_order": [
   "url",
   "username",
-  "password"
+  "column_break_mdkd",
+  "password",
+  "token"
  ],
  "fields": [
   {
@@ -24,13 +26,22 @@
    "fieldname": "password",
    "fieldtype": "Password",
    "label": "Password"
+  },
+  {
+   "fieldname": "column_break_mdkd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Long Text",
+   "label": "Token"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-15 16:30:06.491080",
+ "modified": "2026-06-17 13:29:08.437926",
  "modified_by": "Administrator",
  "module": "Sales and Campaign",
  "name": "Pulse Sales Configuration",
