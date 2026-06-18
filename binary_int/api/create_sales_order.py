@@ -83,8 +83,8 @@ def build_sales_order_payload(doc):
 
         "paymentTerms": [
             {
-                "paymentTermsId": term.payment_terms_template or "",
-                "termName": term.payment_terms_template or "",
+                "paymentTermsId": "",
+                "termName": term.payment_term or "",
                 "description": term.description or "",
                 "dueDate": str(term.due_date) if term.due_date else "",
                 "invoicePortion": term.invoice_portion or 0,
