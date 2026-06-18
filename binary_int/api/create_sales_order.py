@@ -59,7 +59,7 @@ def build_sales_order_payload(doc):
         })
 
     return {
-        "userId": doc.owner,
+        "userId": "20193",
         "sfdcOrderId": doc.name,
         "orderDate": str(doc.transaction_date) if doc.transaction_date else "",
         "endClientCode": doc.customer or "",
