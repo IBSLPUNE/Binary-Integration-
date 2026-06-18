@@ -54,8 +54,8 @@ def build_sales_order_payload(doc):
         "invoiceNumber": "",
         "documents": "",
         "timezone": "",
-        "client_cid": "",
-        "client_io": "",
+        "client_cid": doc.custom_client_cid,
+        "client_io": doc.custom_client_io_number,
         "client_campaign_name": doc.name,
  
         "productItems": [
