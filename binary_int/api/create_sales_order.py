@@ -39,42 +39,42 @@ def get_token(config):
 def build_sales_order_payload(doc):
     product_items = []
 
-    for item in doc.get("items"):
+    for item in doc.get("items", []):
         product_items.append({
             "orderProductId": "",
-            "productName": item.item_name or item.item_code or "",
+            "productName": item.item_name or "",
             "pricingType": doc.currency or "",
             "quantityType": item.uom or "",
-            "productCatName": item.item_group or "",
+            "productCatName": item.custom_product_category or "",
             "productType": "1",
-            "productStartDate": str(doc.transaction_date) if doc.transaction_date else "",
+            "productStartDate": str(doc.custom_client_start_date) if doc.custom_client_start_date else "",
             "productEndDate": str(doc.delivery_date) if doc.delivery_date else "",
             "bilableType": "Yes",
             "quantity": float(item.qty or 0),
             "pricing": float(item.rate or 0),
             "totalAmount": float(item.amount or 0),
             "productId": item.item_code or "",
-            "productCatId": item.item_group or "",
+            "productCatId": item.custom_product_category or "",
             "isDelete": False
         })
 
     return {
-        "userId": "20193",
-        "sfdcOrderId": doc.name,
+        "userId": doc.owner,
+        "sfdcOrderId": "",
         "orderDate": str(doc.transaction_date) if doc.transaction_date else "",
-        "endClientCode": doc.customer or "",
+        "endClientCode": doc.custom_end_client_sponsor or "",
         "clientCode": doc.customer or "",
         "isDirect": 0,
-        "clientStartDate": str(doc.transaction_date) if doc.transaction_date else "",
+        "clientStartDate": str(doc.custom_client_start_date) if doc.custom_client_start_date else "",
         "clientEndDate": str(doc.delivery_date) if doc.delivery_date else "",
         "specification": "",
         "poNumber": doc.po_no or "",
-        "deliverySchedule": "",
-        "pacing": "",
+        "deliverySchedule": doc.custom_delivery_schedule or "",
+        "pacing": doc.custom_pacing or "",
         "billingType": "",
         "invoiceNumber": "",
         "documents": "",
-        "timezone": "",
+        "timezone": doc.custom_time_zone or "",
         "client_cid": doc.custom_client_cid or "",
         "client_io": doc.custom_client_io_number or "",
         "client_campaign_name": doc.name,
@@ -83,14 +83,14 @@ def build_sales_order_payload(doc):
 
         "paymentTerms": [
             {
-                "paymentTermsId": "",
-                "termName": term.payment_term or "",
+                "paymentTermsId": term.payment_terms_template or "",
+                "termName": term.payment_terms_template or "",
                 "description": term.description or "",
                 "dueDate": str(term.due_date) if term.due_date else "",
                 "invoicePortion": term.invoice_portion or 0,
                 "amount": term.payment_amount or 0
             }
-            for term in doc.payment_schedule
+            for term in doc.get("payment_schedule", [])
         ],
 
         "contacts": [
@@ -107,9 +107,9 @@ def build_sales_order_payload(doc):
 
         "isUpdate": {
             "orderDetails": True,
-            "productItems": True,
-            "items": True,
-            "paymentTerms": True
+            "productItems": False,
+            "items": False,
+            "paymentTerms": False
         },
 
         "allocation": 100
