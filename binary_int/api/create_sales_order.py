@@ -174,6 +174,10 @@ def create_sales_order(doc, method=None):
             response = post_sales_order(payload, token)
 
         response.raise_for_status()
+        frappe.msgprint(
+        title="Pulse Response",
+        msg=f"<pre>{frappe.as_json(response.json(), indent=2)}</pre>"
+        )
 
         frappe.msgprint("Sales Order synced successfully with Pulse.")
 
