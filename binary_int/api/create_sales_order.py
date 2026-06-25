@@ -37,27 +37,36 @@ def get_token(config):
 
 
 def build_sales_order_payload(doc):
-    product_items = []
-
+    products_cat_items = []
+    products_items = []
+ 
     for item in doc.get("items"):
-        product_items.append({
-            "orderProductId": "",
-            "productName": item.item_name or item.item_code or "",
-            "pricingType": doc.currency or "",
-            "quantityType": item.uom or "",
-            "productCatName": item.item_group or "",
-            "productType": "1",
+        product_cat_name = item.custom_product_category or item.item_group or ""
+ 
+        if product_cat_name and not any(
+            row.get("productCatName") == product_cat_name
+            for row in products_cat_items
+        ):
+            products_cat_items.append({
+                "productCatName": product_cat_name
+            })
+ 
+        products_items.append({
+            "productName": item.item_name or "",
             "productStartDate": str(doc.transaction_date) if doc.transaction_date else "",
             "productEndDate": str(doc.delivery_date) if doc.delivery_date else "",
-            "bilableType": "Yes",
-            "quantity": float(item.qty or 0),
-            "pricing": float(item.rate or 0),
-            "totalAmount": float(item.amount or 0),
-            "productId": item.item_code or "",
-            "productCatId": item.item_group or "",
-            "isDelete": False
+            "getProductNameListByCat": [
+                item.item_code or ""
+            ],
+            "getProductCatType": "1",
+            "billingTypes": "Yes",
+            "quantity": int(item.qty or 0),
+            "cpl": str(item.rate or ""),
+            "totalAmount": int(item.amount or 0),
+            "productCatName": product_cat_name,
+            "productCatId": item.item_group or ""
         })
-
+ 
     return {
         "userId": "20193",
         "sfdcOrderId": doc.name,
@@ -71,28 +80,25 @@ def build_sales_order_payload(doc):
         "poNumber": doc.po_no or "",
         "deliverySchedule": "",
         "pacing": "",
-        "billingType": "",
+        "billingType": "monthly",
         "invoiceNumber": "",
         "documents": "",
         "timezone": "",
         "client_cid": doc.custom_client_cid or "",
         "client_io": doc.custom_client_io_number or "",
         "client_campaign_name": doc.name,
-
-        "productItems": product_items,
-
+        "productsCatItems": products_cat_items,
+        "productsItems": products_items,
         "paymentTerms": [
             {
-                "paymentTermsId": "",
                 "termName": term.payment_term or "",
                 "description": term.description or "",
                 "dueDate": str(term.due_date) if term.due_date else "",
-                "invoicePortion": term.invoice_portion or 0,
-                "amount": term.payment_amount or 0
+                "invoicePortion": str(term.invoice_portion or ""),
+                "amount": str(term.payment_amount or "")
             }
             for term in doc.payment_schedule
         ],
-
         "contacts": [
             {
                 "contactId": doc.contact_person or "",
@@ -101,18 +107,14 @@ def build_sales_order_payload(doc):
                 "phoneNumber": doc.contact_mobile or "",
                 "emailId": doc.contact_email or "",
                 "timeZone": "",
-                "contactType": 3
+                "contactType": ""
             }
         ],
-
-        "isUpdate": {
-            "orderDetails": True,
-            "productItems": True,
-            "items": True,
-            "paymentTerms": True
-        },
-
-        "allocation": 100
+        "allocationQuantity": int(sum(
+            float(item.qty or 0)
+            for item in doc.get("items")
+        )),
+        "cpl": float(doc.items[0].rate or 0) if doc.items else 0
     }
 
 
