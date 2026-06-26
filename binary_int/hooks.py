@@ -143,9 +143,14 @@ doc_events = {
 	# 	"on_cancel": "method",
 	# 	"on_trash": "method"
 	# }
-    "Sales Order": {
-        "on_submit": "binary_int.api.create_sales_order.create_sales_order"}
+    # "Sales Order": {
+    #     "on_submit": "binary_int.api.create_sales_order.create_sales_order"},
+	
+	"Project":{
+		"validate": "binary_int.api.create_sales_order.create_sales_order"
+	}
 }
+
  
 # Scheduled Tasks
 # ---------------

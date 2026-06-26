@@ -37,6 +37,7 @@ def get_token(config):
 
 
 def build_sales_order_payload(doc):
+    frappe.msgprint("Hook Triggered")
     products_cat_items = []
     products_items = []
  
