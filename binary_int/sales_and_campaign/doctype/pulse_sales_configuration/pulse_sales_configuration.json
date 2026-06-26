@@ -7,6 +7,8 @@
  "field_order": [
   "url",
   "username",
+  "sales_order_url",
+  "campaign_url",
   "column_break_mdkd",
   "password",
   "token"
@@ -35,13 +37,23 @@
    "fieldname": "token",
    "fieldtype": "Long Text",
    "label": "Token"
+  },
+  {
+   "fieldname": "sales_order_url",
+   "fieldtype": "Data",
+   "label": "Sales Order URL"
+  },
+  {
+   "fieldname": "campaign_url",
+   "fieldtype": "Data",
+   "label": "Campaign URL"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-17 13:29:08.437926",
+ "modified": "2026-06-26 18:15:52.936873",
  "modified_by": "Administrator",
  "module": "Sales and Campaign",
  "name": "Pulse Sales Configuration",
