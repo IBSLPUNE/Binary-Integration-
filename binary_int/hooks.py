@@ -147,7 +147,7 @@ doc_events = {
     #     "on_submit": "binary_int.api.create_sales_order.create_sales_order"},
 	
 	"Project":{
-		"validate": "binary_int.api.create_sales_order.create_sales_order"
+		"after_insert": "binary_int.api.create_sales_order.create_sales_order"
 	}
 }
 
