@@ -61,6 +61,15 @@ def build_sales_order_payload(doc):
             sales_order.custom_end_client_sponsor,
             "pulse_end_client_id"
         ) or ""
+        
+    client_code = ""
+    if sales_order.customer:
+        client_code = frappe.db.get_value(
+            "Customer",
+            sales_order.customer,
+            "custom_pulse_client_id"
+        ) or ""
+ 
  
     products_cat_items = []
     if product_cat_name:
@@ -89,7 +98,7 @@ def build_sales_order_payload(doc):
         "sfdcOrderId": sales_order.name,
         "orderDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
         "endClientCode": end_client_code,
-        "clientCode": sales_order.customer or "",
+        "clientCode": client_code,
         "isDirect": 0,
         "clientStartDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
         "clientEndDate": str(sales_order.delivery_date) if sales_order.delivery_date else "",
