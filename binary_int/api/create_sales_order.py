@@ -42,7 +42,17 @@ def build_sales_order_payload(doc):
     sales_order = frappe.get_doc("Sales Order", doc.custom_sales_order_no)
     so_item = frappe.get_doc("Sales Order Item", doc.custom_so_item_row)
  
-    product_cat_name = so_item.custom_product_category or so_item.item_group or ""
+    item_doc = frappe.get_doc("Item", so_item.item_code)
+ 
+    product_cat_name = item_doc.item_group or ""
+ 
+    product_cat_id = ""
+    if product_cat_name:
+        product_cat_id = frappe.db.get_value(
+            "Item Group",
+            product_cat_name,
+            "custom_pulse_product_category_id"
+        ) or ""
  
     products_cat_items = []
     if product_cat_name:
@@ -62,8 +72,8 @@ def build_sales_order_payload(doc):
         "quantity": int(doc.custom_qty or 0),
         "cpl": str(getattr(doc, "custom_cpl", "") or so_item.rate or ""),
         "totalAmount": int((doc.custom_qty or 0) * (getattr(doc, "custom_cpl", 0) or so_item.rate or 0)),
-        "productCatName": "Lead Generation",
-        "productCatId": so_item.custom_product_category or ""
+        "productCatName": product_cat_name,
+        "productCatId": product_cat_id
     }]
  
     return {
