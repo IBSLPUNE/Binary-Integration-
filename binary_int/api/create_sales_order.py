@@ -62,8 +62,8 @@ def build_sales_order_payload(doc):
         "quantity": int(doc.custom_qty or 0),
         "cpl": str(getattr(doc, "custom_cpl", "") or so_item.rate or ""),
         "totalAmount": int((doc.custom_qty or 0) * (getattr(doc, "custom_cpl", 0) or so_item.rate or 0)),
-        "productCatName": product_cat_name,
-        "productCatId": so_item.item_group or ""
+        "productCatName": "Lead Generation",
+        "productCatId": so_item.custom_product_category or ""
     }]
  
     return {
