@@ -65,7 +65,7 @@ def build_sales_order_payload(doc):
         "productStartDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
         "productEndDate": str(sales_order.delivery_date) if sales_order.delivery_date else "",
         "getProductNameListByCat": [
-            so_item.item_code or ""
+            item_doc.custom_pulse_product_id or ""
         ],
         "getProductCatType": "1",
         "billingTypes": "Yes",
