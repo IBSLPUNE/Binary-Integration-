@@ -54,6 +54,14 @@ def build_sales_order_payload(doc):
             "custom_pulse_product_category_id"
         ) or ""
  
+    end_client_code = ""
+    if sales_order.custom_end_client_sponsor:
+        end_client_code = frappe.db.get_value(
+            "End Client Sponsor",
+            sales_order.custom_end_client_sponsor,
+            "pulse_end_client_id"
+        ) or ""
+ 
     products_cat_items = []
     if product_cat_name:
         products_cat_items.append({
@@ -65,7 +73,7 @@ def build_sales_order_payload(doc):
         "productStartDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
         "productEndDate": str(sales_order.delivery_date) if sales_order.delivery_date else "",
         "getProductNameListByCat": [
-            item_doc.custom_pulse_product_id or ""
+            getattr(item_doc, "custom_pulse_product_id", "") or ""
         ],
         "getProductCatType": "1",
         "billingTypes": "Yes",
@@ -80,7 +88,7 @@ def build_sales_order_payload(doc):
         "userId": "20193",
         "sfdcOrderId": sales_order.name,
         "orderDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
-        "endClientCode": sales_order.customer or "",
+        "endClientCode": end_client_code,
         "clientCode": sales_order.customer or "",
         "isDirect": 0,
         "clientStartDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
