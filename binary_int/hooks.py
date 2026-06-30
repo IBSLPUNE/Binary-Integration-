@@ -138,17 +138,14 @@ app_license = "mit"
 # Hook on document methods and events
  
 doc_events = {
-	# "*": {
-	# 	"on_update": "method",
-	# 	"on_cancel": "method",
-	# 	"on_trash": "method"
-	# }
-    # "Sales Order": {
-    #     "on_submit": "binary_int.api.create_sales_order.create_sales_order"},
 	
 	"Project":{
-		"after_insert": "binary_int.api.create_sales_order.create_sales_order"
+		"after_insert": [
+			"binary_int.api.create_sales_order.create_sales_order",
+			"binary_int.api.create_campaign.create_campaign"
+		]
 	}
+
 }
 
  
