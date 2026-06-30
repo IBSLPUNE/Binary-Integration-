@@ -67,8 +67,8 @@ def build_campaign_payload(doc):
     cpl = float(getattr(doc, "custom_cpl", 0) or so_item.rate or 0)
     total_amount = qty * cpl
  
-    go_live_date = doc.custom_go_live_dateclient_start_date or doc.expected_start_date
-    end_date = doc.custom_campaign_end_date or doc.expected_end_date
+    go_live_date = doc.custom_go_live_dateclient_start_date or doc.expected_start_date or sales_order.transaction_date
+    end_date = doc.custom_campaign_end_date or doc.expected_end_date or sales_order.delivery_date
     client_end_date = doc.custom_client_end_date or sales_order.delivery_date
  
     return {
@@ -82,7 +82,7 @@ def build_campaign_payload(doc):
         "deliverySchedule": doc.custom_delivery_schedule or "",
         "pacing": doc.custom_pacing or "",
         "description": doc.notes or "",
-        "allocation": doc.custom_qty,
+        "allocation": qty,
         "billableBonus": 0,
         "nonBillableBonus": 0,
         "goLiveDate": str(go_live_date) if go_live_date else "",
@@ -94,8 +94,8 @@ def build_campaign_payload(doc):
         "industry": doc.custom_industry or "",
         "geo": doc.custom_geo or "",
         "revenueRange": doc.custom_revenue_requirement or "",
-        "status": doc.status or "",
-        "deliveryMode": to_list(doc.custom_delivery_schedule),
+        "status": "live",
+        # "deliveryMode": to_list(doc.custom_delivery_mode or ""),
         "specs": doc.notes or "",
         "request_id": doc.custom_dba_request_id or "",
         "spoc": {
@@ -117,17 +117,17 @@ def build_campaign_payload(doc):
         "deliveryDays": {
             "opsDays": to_list(doc.custom_delivery_days),
             "opsTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "",
-            "opsTimezone": doc.custom_timezone or "",
-            "clientDays": to_list(doc.custom_delivery_days),
-            "clientTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "",
-            "clientTimezone": doc.custom_new_timezone or doc.custom_new_timezone or "",
+            "opsTimezone": doc.custom_new_timezone or "",
+            "clientDays": to_list(doc.custom_delivery_days or ""),
+            "clientTime": str(doc.custom_delivery_time or ""),
+            "clientTimezone": doc.custom_new_timezone or "",
             "opsDeliveryDays": [],
             "clientDeliveryDays": []
         },
         "products": [
             {
-                "startDate": str(sales_order.transaction_date) if sales_order.transaction_date else "",
-                "endDate": str(sales_order.delivery_date) if sales_order.delivery_date else "",
+                "startDate": str(go_live_date) if go_live_date else "",
+                "endDate": str(end_date) if end_date else "",
                 "type": so_item.item_group or "",
                 "numberOfLeads": qty
             }
@@ -148,8 +148,24 @@ def build_campaign_payload(doc):
 def post_campaign(payload, token):
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "PostmanRuntime/7.37.3"
     }
+ 
+    frappe.log_error(
+        title="Pulse Campaign Request Debug",
+        message=frappe.as_json({
+            "url": CAMPAIGN_URL,
+            "headers": {
+                "Authorization": f"Bearer {token[:20]}...",
+                "Content-Type": headers.get("Content-Type"),
+                "Accept": headers.get("Accept"),
+                "User-Agent": headers.get("User-Agent")
+            },
+            "payload": payload
+        }, indent=2)
+    )
  
     return requests.post(
         CAMPAIGN_URL,
