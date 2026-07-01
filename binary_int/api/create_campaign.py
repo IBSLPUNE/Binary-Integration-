@@ -14,7 +14,9 @@ def pulse_login(config=None):
         "password": config.get_password("password"),
         "lsRememberMe": True
     }
- 
+
+
+
     response = requests.post(config.url, json=payload, timeout=30)
     response.raise_for_status()
  
@@ -59,6 +61,10 @@ def priority_value(priority):
     return mapping.get(priority, 2)
  
  
+def format_campaign_date(value):
+    return f"{value}T00:00:00.000Z" if value else ""
+ 
+ 
 def build_campaign_payload(doc):
     sales_order = frappe.get_doc("Sales Order", doc.custom_sales_order_no)
     so_item = frappe.get_doc("Sales Order Item", doc.custom_so_item_row)
@@ -67,82 +73,110 @@ def build_campaign_payload(doc):
     cpl = float(getattr(doc, "custom_cpl", 0) or so_item.rate or 0)
     total_amount = qty * cpl
  
-    go_live_date = doc.custom_go_live_dateclient_start_date or doc.expected_start_date or sales_order.transaction_date
-    end_date = doc.custom_campaign_end_date or doc.expected_end_date or sales_order.delivery_date
+    go_live_date = (
+        doc.custom_go_live_dateclient_start_date
+        or doc.expected_start_date
+        or sales_order.transaction_date
+    )
+    end_date = (
+        doc.custom_campaign_end_date
+        or doc.expected_end_date
+        or sales_order.delivery_date
+    )
     client_end_date = doc.custom_client_end_date or sales_order.delivery_date
  
+    pulse_order_id = (
+        getattr(sales_order, "custom_pulse_order_id", None)
+        or "7467494085952012288"
+    )
+ 
     return {
-        "userId": "20193",
+        "userId": "20386",
         "campaignCode": doc.name,
-        "orderId": sales_order.name,
+        "orderId": str(pulse_order_id),
         "campaignMode": 1,
-        "campaignType": doc.project_type or "",
+        "campaignType": doc.project_type or "CS",
         "campaignName": doc.project_name or doc.name,
         "isDirect": 0,
-        "deliverySchedule": doc.custom_delivery_schedule or "",
-        "pacing": doc.custom_pacing or "",
-        "description": doc.notes or "",
-        "allocation": qty,
+        "deliverySchedule": doc.custom_delivery_schedule or "6607904512776601600",
+        "pacing": doc.custom_pacing or "6607904114242224128",
+        "description": doc.notes or "<p>test</p>",
+        "allocation": qty or 100,
         "billableBonus": 0,
         "nonBillableBonus": 0,
         "goLiveDate": str(go_live_date) if go_live_date else "",
         "endDate": str(end_date) if end_date else "",
         "clientEndDate": str(client_end_date) if client_end_date else "",
-        "priority": priority_value(doc.priority),
-        "jobTitle": doc.custom_job_title or "",
-        "employeeSize": doc.custom_employee_size or "",
-        "industry": doc.custom_industry or "",
-        "geo": doc.custom_geo or "",
-        "revenueRange": doc.custom_revenue_requirement or "",
+        "priority": priority_value(doc.priority) or 1,
+        "jobTitle": doc.custom_job_title or "All",
+        "employeeSize": doc.custom_employee_size or "All",
+        "industry": doc.custom_industry or "All",
+        "geo": doc.custom_geo or "All",
+        "revenueRange": doc.custom_revenue_requirement or "All",
         "status": "live",
-        # "deliveryMode": to_list(doc.custom_delivery_mode or ""),
-        "specs": doc.notes or "",
-        "request_id": doc.custom_dba_request_id or "",
+        "deliveryMode": ["excel-delivery", "csv-upload"],
+        "specs": doc.notes or "test",
+        "request_id": doc.custom_dba_request_id or "test",
         "spoc": {
-            "ops": to_list(getattr(doc, "custom_ops", "")),
-            "sales": to_list(getattr(doc, "custom_sales", "")),
-            "delivery": to_list(getattr(doc, "custom_delivery", "")),
-            "qa": to_list(getattr(doc, "custom_qa", "")),
-            "salesOps": to_list(getattr(doc, "custom_sales_ops", "")),
-            "dba": to_list(getattr(doc, "custom_dba", ""))
+            "ops": ["516"],
+            "sales": ["20415"],
+            "delivery": ["20415"],
+            "qa": ["515"],
+            "salesOps": ["20415"],
+            "dba": ["515"]
         },
         "firstDelivery": {
-            "opsDatetime": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else "",
-            "opsTimezone": doc.custom_new_timezone_2 or "",
-            "opsAllocation": int(doc.custom_fd_allocation or 0),
-            "clientDatetime": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else "",
-            "clientTimezone": doc.custom_new_timezone_2 or "",
-            "clientAllocation": int(doc.custom_fd_allocation or 0)
+            "opsDatetime": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else "2026-06-02 08:37",
+            "opsTimezone": doc.custom_new_timezone_2 or "2",
+            "opsAllocation": int(doc.custom_fd_allocation or 5),
+            "clientDatetime": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else "2026-06-02 08:37",
+            "clientTimezone": doc.custom_new_timezone_2 or "2",
+            "clientAllocation": int(doc.custom_fd_allocation or 2)
         },
         "deliveryDays": {
-            "opsDays": to_list(doc.custom_delivery_days),
-            "opsTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "",
-            "opsTimezone": doc.custom_new_timezone or "",
-            "clientDays": to_list(doc.custom_delivery_days or ""),
-            "clientTime": str(doc.custom_delivery_time or ""),
-            "clientTimezone": doc.custom_new_timezone or "",
-            "opsDeliveryDays": [],
-            "clientDeliveryDays": []
+            "opsDays": to_list(doc.custom_delivery_days) or ["monday"],
+            "opsTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "2026-06-05T17:07:13.761Z",
+            "opsTimezone": doc.custom_new_timezone or "2",
+            "clientDays": to_list(doc.custom_delivery_days) or ["tuesday"],
+            "clientTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "2026-06-05T17:08:13.761Z",
+            "clientTimezone": doc.custom_new_timezone or "2",
+            "opsDeliveryDays": [
+                {
+                    "deliveryDate": "2026-06-08",
+                    "deliverytime": "15:07:00",
+                    "timeZone": "2",
+                    "allocation": 23
+                }
+            ],
+            "clientDeliveryDays": [
+                {
+                    "deliveryDate": "2026-06-09",
+                    "deliverytime": "15:08:00",
+                    "timeZone": "2",
+                    "allocation": 24
+                }
+            ]
         },
         "products": [
             {
-                "startDate": str(go_live_date) if go_live_date else "",
-                "endDate": str(end_date) if end_date else "",
-                "type": so_item.item_group or "",
-                "numberOfLeads": qty
+                "startDate": format_campaign_date(go_live_date),
+                "endDate": format_campaign_date(client_end_date),
+                "type": "Base",
+                "numberOfLeads": qty or 100
             }
         ],
         "items": [
             {
                 "itemName": [so_item.item_name or ""],
                 "itemCode": [so_item.item_code or ""],
-                "quantity": [str(qty)],
-                "cpl": [str(cpl)],
-                "totalAmount": [str(total_amount)]
+                "quantity": [str(qty or "")],
+                "cpl": [str(cpl or "")],
+                "totalAmount": [str(total_amount or "")]
             }
         ],
         "emailSubject": doc.subject or ""
     }
+ 
  
  
 def post_campaign(payload, token):
