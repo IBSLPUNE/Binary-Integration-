@@ -197,9 +197,14 @@ def create_sales_order(doc, method=None):
  
         response.raise_for_status()
  
+        response_data = response.json()
+ 
+        if response_data.get("orderId"):
+            doc.db_set("custom_pulse_so_id", response_data.get("orderId"))
+ 
         frappe.msgprint(
             title="Pulse Response",
-            msg=f"<pre>{frappe.as_json(response.json(), indent=2)}</pre>"
+            msg=f"<pre>{frappe.as_json(response_data, indent=2)}</pre>"
         )
  
         frappe.msgprint("Sales Order synced successfully with Pulse.")
@@ -217,4 +222,3 @@ def create_sales_order(doc, method=None):
             message=frappe.get_traceback()
         )
 
-        
