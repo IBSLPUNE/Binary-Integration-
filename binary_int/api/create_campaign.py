@@ -265,3 +265,5 @@ def create_campaign(doc, method=None):
             title="Pulse Campaign Sync Error",
             message=frappe.get_traceback()
         )
+
+        

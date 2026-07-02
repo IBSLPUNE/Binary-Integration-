@@ -216,3 +216,5 @@ def create_sales_order(doc, method=None):
             title="Pulse Sales Order Sync Error",
             message=frappe.get_traceback()
         )
+
+        
