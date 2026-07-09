@@ -198,9 +198,22 @@ def create_sales_order(doc, method=None):
         response.raise_for_status()
  
         response_data = response.json()
- 
-        if response_data.get("orderId"):
-            doc.db_set("custom_pulse_so_id", response_data.get("orderId"))
+        
+        pulse_order_id = response_data.get("orderId") or response_data.get("data", {}).get("orderId")
+        if pulse_order_id:
+            doc.db_set("custom_pulse_so_id", pulse_order_id)
+
+        frappe.db.set_value(
+            "Sales Order",
+            doc.custom_sales_order_no,
+            "custom_pulse_so_id",
+            pulse_order_id
+            )
+            
+        frappe.db.commit()
+        # if response_data.get("orderId"):
+        #     doc.db_set("custom_pulse_so_id", response_data.get("orderId"))
+        
  
         frappe.msgprint(
             title="Pulse Response",
