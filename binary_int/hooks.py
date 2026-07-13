@@ -143,11 +143,29 @@ doc_events = {
 		"after_insert": [
 			"binary_int.api.create_sales_order.create_sales_order",
 			"binary_int.api.create_campaign.create_campaign"
+		],
+		"on_update":[
+			"binary_int.api.create_campaign.update_campaign"
 		]
+		# "after_save":"binary_int.api.update_campaign.update_campaign"
 	}
+	# "Sales Order":{
+	# 	"on_submit": "binary_int.api.update_sales_order.update_sales_order"
+	# }
 
 }
 
+# doc_events = {
+#     "Project": {
+#         "after_insert": [
+#             "binary_int.api.create_sales_order.create_sales_order",
+#             "binary_int.api.create_campaign.sync_campaign"
+#         ],
+#         "on_update": [
+#             "binary_int.api.create_campaign.sync_campaign"
+#         ]
+#     }
+# }
  
 # Scheduled Tasks
 # ---------------
