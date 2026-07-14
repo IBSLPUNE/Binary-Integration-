@@ -15,7 +15,11 @@ def pulse_login(config=None):
         "lsRememberMe": True
     }
 
-    response = requests.post(config.url, json=payload, timeout=30)
+    response = requests.post(
+        config.url,
+        json=payload,
+        timeout=30
+    )
     response.raise_for_status()
 
     data = response.json()
@@ -36,20 +40,6 @@ def get_token(config):
     return pulse_login(config)
 
 
-def to_list(value):
-    if not value:
-        return []
-
-    if isinstance(value, list):
-        return value
-
-    return [
-        row.strip().lower()
-        for row in str(value).replace("\n", ",").split(",")
-        if row.strip()
-    ]
-
-
 def priority_value(priority):
     mapping = {
         "Low": 1,
@@ -60,156 +50,304 @@ def priority_value(priority):
 
 
 def format_campaign_date(value):
-    return f"{value}T00:00:00.000Z" if value else ""
+    if not value:
+        return ""
+
+    return f"{value}T00:00:00.000Z"
+
+
+def format_time(value):
+    if not value:
+        return ""
+
+    return str(value).split(".")[0]
+
+
+def format_datetime(date_value, time_value=None):
+    if not date_value:
+        return ""
+
+    formatted_time = format_time(time_value) or "15:00:00"
+    return f"{date_value} {formatted_time[:5]}"
+
+
+def format_iso_datetime(date_value, time_value=None):
+    if not date_value:
+        return ""
+
+    formatted_time = format_time(time_value) or "15:00:00"
+    return f"{date_value}T{formatted_time}.000Z"
 
 
 def get_campaign_id_from_response(data):
     if not data:
         return None
 
+    response_data = data.get("data") or {}
+
     return (
         data.get("campaignId")
         or data.get("id")
         or data.get("campaign_id")
-        or data.get("data", {}).get("campaignId")
-        or data.get("data", {}).get("id")
-        or data.get("data", {}).get("campaign_id")
+        or response_data.get("campaignId")
+        or response_data.get("id")
+        or response_data.get("campaign_id")
     )
 
 
-def get_safe_time(value):
-    if value:
-        return str(value).split(".")[0]
+def build_delivery_scheduler_rows(doc):
+    rows = []
 
-    return "15:00:00"
+    for row in doc.get("custom_delivery_scheduler") or []:
+        delivery_date = row.get("delivery_date")
+
+        if not delivery_date:
+            continue
+
+        rows.append({
+            "deliveryDate": str(delivery_date),
+            "deliverytime": format_time(
+                row.get("delivery_time")
+            ) or "15:00:00",
+            "timeZone": str(
+                row.get("timezone")
+                or doc.get("custom_new_timezone")
+                or "2"
+            ),
+            "allocation": int(
+                row.get("allocation")
+                or 0
+            )
+        })
+
+    return rows
 
 
-def build_campaign_payload(doc):
-    sales_order = frappe.get_doc("Sales Order", doc.custom_sales_order_no)
-    so_item = frappe.get_doc("Sales Order Item", doc.custom_so_item_row)
+def build_delivery_days_payload(doc, go_live_date):
+    delivery_days = [
+        str(row.get("day")).strip().lower()
+        for row in doc.get("custom_delivery_days") or []
+        if row.get("day")
+    ]
 
-    pulse_order_id = getattr(sales_order, "custom_pulse_so_id", None)
+    scheduler_rows = build_delivery_scheduler_rows(doc)
+
+    delivery_time = doc.get("custom_delivery_time")
+    client_time = doc.get("custom_time") or delivery_time
+    timezone = doc.get("custom_new_timezone") or "2"
+
+    return {
+        "opsDays": delivery_days,
+        "opsTime": format_iso_datetime(
+            go_live_date,
+            delivery_time
+        ),
+        "opsTimezone": str(timezone),
+        "clientDays": delivery_days,
+        "clientTime": format_iso_datetime(
+            go_live_date,
+            client_time
+        ),
+        "clientTimezone": str(timezone),
+        "opsDeliveryDays": scheduler_rows,
+        "clientDeliveryDays": [
+            dict(row)
+            for row in scheduler_rows
+        ]
+    }
+
+
+def build_campaign_payload(doc, is_update=False):
+    sales_order = frappe.get_doc(
+        "Sales Order",
+        doc.custom_sales_order_no
+    )
+
+    so_item = frappe.get_doc(
+        "Sales Order Item",
+        doc.custom_so_item_row
+    )
+
+    pulse_order_id = sales_order.get("custom_pulse_so_id")
 
     if not pulse_order_id:
-        frappe.throw(f"Pulse Sales Order ID missing in Sales Order {sales_order.name}")
+        frappe.throw(
+            f"Pulse Sales Order ID missing in Sales Order "
+            f"{sales_order.name}"
+        )
 
-    qty = int(doc.custom_qty or 0)
-    cpl = float(getattr(doc, "custom_cpl", 0) or so_item.rate or 0)
+    qty = int(doc.get("custom_qty") or 0)
+    cpl = float(
+        doc.get("custom_cpl")
+        or so_item.rate
+        or 0
+    )
     total_amount = qty * cpl
 
     go_live_date = (
-        getattr(doc, "custom_go_live_dateclient_start_date", None)
-        or getattr(doc, "expected_start_date", None)
+        doc.get("custom_go_live_dateclient_start_date")
+        or doc.get("expected_start_date")
         or sales_order.transaction_date
     )
 
-    end_date = (
-        getattr(doc, "custom_campaign_end_date", None)
-        or getattr(doc, "expected_end_date", None)
-        or sales_order.delivery_date
-    )
-
     client_end_date = (
-        getattr(doc, "custom_client_end_date", None)
+        doc.get("custom_client_end_date")
         or sales_order.delivery_date
     )
 
     first_delivery_date = (
-        getattr(doc, "custom_first_delivery_date", None)
+        doc.get("custom_first_delivery_date")
         or go_live_date
-        or sales_order.transaction_date
     )
 
-    delivery_time = get_safe_time(getattr(doc, "custom_delivery_time", None))
-    delivery_days = to_list(getattr(doc, "custom_delivery_days", None)) or ["monday"]
-    first_delivery_datetime = f"{first_delivery_date} 15:00"
+    ops_delivery_time = (
+        doc.get("custom_delivery_time")
+        or "15:00:00"
+    )
 
-    return {
+    client_delivery_time = (
+        doc.get("custom_time")
+        or ops_delivery_time
+    )
+
+    payload = {
         "userId": "20386",
         "campaignCode": doc.name,
         "orderId": str(pulse_order_id),
         "campaignMode": 1,
-        "campaignType": doc.project_type or "CS",
-        "campaignName": doc.project_name or doc.name,
+        "campaignType": doc.get("project_type") or "CS",
+        "campaignName": doc.get("project_name") or doc.name,
         "isDirect": 0,
-        "deliverySchedule": doc.custom_delivery_schedule or "",
-        "pacing": doc.custom_pacing or "",
-        "description": doc.notes or "<p>test</p>",
+        "deliverySchedule": (
+            doc.get("custom_delivery_schedule")
+            or ""
+        ),
+        "pacing": doc.get("custom_pacing") or "",
+        "description": doc.get("notes") or "",
         "allocation": qty,
         "billableBonus": 0,
         "nonBillableBonus": 0,
-        "goLiveDate": str(go_live_date) if go_live_date else "",
-        "endDate": str(end_date) if end_date else "",
-        "clientEndDate": str(client_end_date) if client_end_date else "",
-        "priority": priority_value(doc.priority),
-        "jobTitle": doc.custom_job_title or "All",
-        "employeeSize": doc.custom_employee_size or "All",
-        "industry": doc.custom_industry or "All",
-        "geo": doc.custom_geo or "All",
-        "revenueRange": doc.custom_revenue_requirement or "All",
+        "goLiveDate": (
+            str(go_live_date)
+            if go_live_date
+            else ""
+        ),
+        "endDate": (
+            str(client_end_date)
+            if client_end_date
+            else ""
+        ),
+        "clientEndDate": (
+            str(client_end_date)
+            if client_end_date
+            else ""
+        ),
+        "priority": priority_value(
+            doc.get("priority")
+        ),
+        "jobTitle": (
+            doc.get("custom_job_title")
+            or "All"
+        ),
+        "employeeSize": (
+            doc.get("custom_employee_size")
+            or "All"
+        ),
+        "industry": (
+            doc.get("custom_industry")
+            or "All"
+        ),
+        "geo": (
+            doc.get("custom_geo")
+            or "All"
+        ),
+        "revenueRange": (
+            doc.get("custom_revenue_requirement")
+            or "All"
+        ),
         "status": "live",
-        "deliveryMode": ["excel-delivery", "csv-upload"],
-        "specs": doc.notes or "test",
-        "request_id": doc.custom_dba_request_id or "test",
+        "deliveryMode": [],
+        "specs": doc.get("notes") or "",
+        "request_id": (
+            doc.get("custom_dba_request_id")
+            or None
+        ),
         "spoc": {
-            "ops": ["516"],
-            "sales": ["20415"],
-            "delivery": ["20415"],
-            "qa": ["515"],
-            "salesOps": ["20415"],
-            "dba": ["515"]
+            "ops": [],
+            "sales": [],
+            "delivery": [],
+            "qa": [],
+            "salesOps": [],
+            "dba": []
         },
-        "firstDelivery": {
-            "opsDatetime": first_delivery_datetime,
-            "opsTimezone": doc.custom_new_timezone_2 or "2",
-            "opsAllocation": int(doc.custom_fd_allocation or qty or 1),
-            "clientDatetime": first_delivery_datetime,
-            "clientTimezone": doc.custom_new_timezone_2 or "2",
-            "clientAllocation": int(doc.custom_fd_allocation or qty or 1)
-        },
-        "deliveryDays": {
-    "opsDays": to_list(doc.custom_delivery_days) or ["monday"],
-    "opsTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "2026-06-05T17:07:13.761Z",
-    "opsTimezone": doc.custom_new_timezone or "2",
-    "clientDays": to_list(doc.custom_delivery_days) or ["tuesday"],
-    "clientTime": str(doc.custom_delivery_time) if doc.custom_delivery_time else "2026-06-05T17:08:13.761Z",
-    "clientTimezone": doc.custom_new_timezone or "2",
-    "opsDeliveryDays": [
-        {
-            "deliveryDate": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else str(go_live_date),
-            "deliverytime": "15:07:00",
-            "timeZone": doc.custom_new_timezone or "2",
-            "allocation": int(doc.custom_fd_allocation or qty or 1)
-        }
-    ],
-    "clientDeliveryDays": [
-        {
-            "deliveryDate": str(doc.custom_first_delivery_date) if doc.custom_first_delivery_date else str(go_live_date),
-            "deliverytime": "15:08:00",
-            "timeZone": doc.custom_new_timezone or "2",
-            "allocation": int(doc.custom_fd_allocation or qty or 1)
-        }
-    ]
-},
         "products": [
             {
-                "startDate": format_campaign_date(go_live_date),
-                "endDate": format_campaign_date(client_end_date),
+                "startDate": format_campaign_date(
+                    go_live_date
+                ),
+                "endDate": format_campaign_date(
+                    client_end_date
+                ),
                 "type": "Base",
                 "numberOfLeads": qty
             }
         ],
         "items": [
             {
-                "itemName": [so_item.item_name or ""],
-                "itemCode": [so_item.item_code or ""],
-                "quantity": [str(qty)],
-                "cpl": [str(cpl)],
-                "totalAmount": [str(total_amount)]
+                "itemName": [
+                    so_item.item_name or ""
+                ],
+                "itemCode": [
+                    so_item.item_code or ""
+                ],
+                "quantity": [
+                    str(qty)
+                ],
+                "cpl": [
+                    str(cpl)
+                ],
+                "totalAmount": [
+                    str(total_amount)
+                ]
             }
         ],
-        "emailSubject": doc.subject or ""
+        "emailSubject": doc.get("subject") or ""
     }
+
+    if is_update:
+        payload["firstDelivery"] = {
+            "opsDatetime": format_datetime(
+                first_delivery_date,
+                ops_delivery_time
+            ),
+            "opsTimezone": str(
+                doc.get("custom_new_timezone_2")
+                or "2"
+            ),
+            "opsAllocation": int(
+                doc.get("custom_fd_allocation")
+                or 0
+            ),
+            "clientDatetime": format_datetime(
+                first_delivery_date,
+                client_delivery_time
+            ),
+            "clientTimezone": str(
+                doc.get("custom_new_timezone_2")
+                or "2"
+            ),
+            "clientAllocation": int(
+                doc.get("custom_fd_allocation")
+                or 0
+            )
+        }
+
+        payload["deliveryDays"] = build_delivery_days_payload(
+            doc,
+            go_live_date
+        )
+
+    return payload
 
 
 def post_campaign(payload, token):
@@ -248,17 +386,29 @@ def put_campaign(campaign_id, payload, token):
 
 def create_campaign(doc, method=None):
     try:
-        if not doc.custom_sales_order_no or not doc.custom_so_item_row:
+        if (
+            not doc.get("custom_sales_order_no")
+            or not doc.get("custom_so_item_row")
+        ):
             frappe.log_error(
                 title="Pulse Campaign Create Skipped",
-                message=f"Project {doc.name} missing Sales Order or Sales Order Item Row"
+                message=(
+                    f"Project {doc.name} missing Sales Order "
+                    f"or Sales Order Item Row"
+                )
             )
             return
 
-        config = frappe.get_single("Pulse Sales Configuration")
-        payload = build_campaign_payload(doc)
-        token = get_token(config)
+        config = frappe.get_single(
+            "Pulse Sales Configuration"
+        )
 
+        payload = build_campaign_payload(
+            doc,
+            is_update=False
+        )
+
+        token = get_token(config)
         response = post_campaign(payload, token)
 
         if response.status_code == 401:
@@ -268,7 +418,12 @@ def create_campaign(doc, method=None):
         if not response.ok:
             frappe.log_error(
                 title="Pulse Campaign Create Failed",
-                message=f"Status: {response.status_code}\nResponse: {response.text}\nPayload:\n{frappe.as_json(payload, indent=2)}"
+                message=(
+                    f"Status: {response.status_code}\n"
+                    f"Response: {response.text}\n"
+                    f"Payload:\n"
+                    f"{frappe.as_json(payload, indent=2)}"
+                )
             )
             return
 
@@ -284,7 +439,10 @@ def create_campaign(doc, method=None):
 
         frappe.log_error(
             title="Pulse Campaign Create Success",
-            message=f"Project {doc.name} created in Pulse.\nResponse:\n{response.text}"
+            message=(
+                f"Project {doc.name} created in Pulse.\n"
+                f"Response:\n{response.text}"
+            )
         )
 
     except Exception:
@@ -298,39 +456,68 @@ def update_campaign(doc, method=None):
     if getattr(doc.flags, "in_insert", False):
         return
 
-    if not doc.custom_sales_order_no or not doc.custom_so_item_row:
+    if (
+        not doc.get("custom_sales_order_no")
+        or not doc.get("custom_so_item_row")
+    ):
         return
 
-    campaign_id = getattr(doc, "custom_pulse_so_id", None)
+    campaign_id = doc.get("custom_pulse_so_id")
 
     if not campaign_id:
         frappe.log_error(
             title="Pulse Campaign Update Skipped",
-            message=f"Project {doc.name} has no custom_pulse_so_id"
+            message=(
+                f"Project {doc.name} has no "
+                f"custom_pulse_so_id"
+            )
         )
         return
 
     try:
-        config = frappe.get_single("Pulse Sales Configuration")
-        payload = build_campaign_payload(doc)
-        token = get_token(config)
+        config = frappe.get_single(
+            "Pulse Sales Configuration"
+        )
 
-        response = put_campaign(campaign_id, payload, token)
+        payload = build_campaign_payload(
+            doc,
+            is_update=True
+        )
+
+        token = get_token(config)
+        response = put_campaign(
+            campaign_id,
+            payload,
+            token
+        )
 
         if response.status_code == 401:
             token = pulse_login(config)
-            response = put_campaign(campaign_id, payload, token)
+            response = put_campaign(
+                campaign_id,
+                payload,
+                token
+            )
 
         if not response.ok:
             frappe.log_error(
                 title="Pulse Campaign Update Failed",
-                message=f"Campaign ID: {campaign_id}\nStatus: {response.status_code}\nResponse: {response.text}\nPayload:\n{frappe.as_json(payload, indent=2)}"
+                message=(
+                    f"Campaign ID: {campaign_id}\n"
+                    f"Status: {response.status_code}\n"
+                    f"Response: {response.text}\n"
+                    f"Payload:\n"
+                    f"{frappe.as_json(payload, indent=2)}"
+                )
             )
             return
 
         frappe.log_error(
             title="Pulse Campaign Update Success",
-            message=f"Project {doc.name} updated in Pulse.\nResponse:\n{response.text}"
+            message=(
+                f"Project {doc.name} updated in Pulse.\n"
+                f"Response:\n{response.text}"
+            )
         )
 
     except Exception:
