@@ -76,6 +76,24 @@ def build_sales_order_payload(doc):
         products_cat_items.append({
             "productCatName": product_cat_name
         })
+        
+    new_timezone = ""
+    if sales_order.custom_new_timezone:
+        new_timezone = frappe.db.get_value(
+        "Timezone",
+        {
+            "name": sales_order.custom_new_timezone
+        },
+        "pulse_timezone_id"
+    ) or ""
+
+    # new_timezone = ""
+    # if sales_order.custom_new_timezone:
+    #     new_timezone = frappe.db.get_value(
+    #         "Timezone",
+    #         sales_order.customer,
+    #         "pulse_timezone_id"
+    #     )
  
     products_items = [{
         "productName": so_item.item_name or "",
@@ -109,7 +127,7 @@ def build_sales_order_payload(doc):
         "billingType": "monthly",
         "invoiceNumber": "",
         "documents": "",
-        "timezone": "",
+        "timezone": new_timezone or "",
         "client_cid": sales_order.custom_client_cid or "",
         "client_io": sales_order.custom_client_io_number or "",
         "client_campaign_name": doc.project_name or doc.name,

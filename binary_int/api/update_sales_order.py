@@ -96,6 +96,33 @@ def build_sales_order_payload(doc):
             "custom_pulse_client_id"
         ) or ""
 
+    # new_timezone = ""
+    # if doc.custom_new_timezone:
+    #     new_timezone = frappe.db.get_value(
+    #         "Timezone",
+    #         doc.custom_new_timezone,
+    #         "pulse_timezone_id"
+    # ) or ""
+    
+
+    # new_timezone = ""
+    # if doc.custom_new_timezone:
+    #     new_timezone = frappe.db.get_value(
+    #     "Timezone",
+    #     {
+    #         "name": doc.custom_new_timezone
+    #     },
+    #     "pulse_timezone_id"
+    # ) or ""
+
+    new_timezone = ""
+    if doc.get("custom_new_timezone"):
+    new_timezone = frappe.db.get_value(
+        "Timezone",
+        doc.get("custom_new_timezone"),
+        "pulse_timezone_id"
+    ) or ""
+
     return {
         "userId": "20192",
         "sfdcOrderId": doc.name,
@@ -112,7 +139,7 @@ def build_sales_order_payload(doc):
         "billingType": doc.get("custom_billing_type") or "monthly",
         "invoiceNumber": doc.get("custom_invoice_number") or "",
         "documents": "",
-        "timezone": doc.get("custom_timezone") or "",
+        "timezone": new_timezone or "",
         "client_cid": doc.custom_client_cid or "",
         "client_io": doc.custom_client_io_number or "",
         "client_campaign_name": doc.get("custom_client_campaign_name") or doc.name,
@@ -161,28 +188,12 @@ def post_sales_order(payload, token, pulse_so_id):
 
     return requests.put(url, json=payload, headers=headers, timeout=30)
 
-
 def update_sales_order(doc, method=None):
     if doc.docstatus != 1:
         return
 
-    if method != "manual_button" and not doc.get("amended_from"):
-        return
-
-    frappe.msgprint("Sales Order Update test")
-
-    frappe.log_error(
-        title="SALES ORDER UPDATE TRIGGERED",
-        message=f"Sales Order: {doc.name}, Method: {method}, Amended From: {doc.get('amended_from')}"
-    )
-
     try:
-        pulse_so_id = doc.get("custom_pulse_so_id") or ""
-
-        frappe.log_error(
-            title="PULSE SO ID",
-            message=pulse_so_id
-        )
+        pulse_so_id = doc.get("custom_pulse_so_id")
 
         if not pulse_so_id:
             frappe.log_error(
@@ -209,16 +220,16 @@ def update_sales_order(doc, method=None):
         frappe.log_error(
             title="PULSE UPDATE RESPONSE",
             message=f"""
+Sales Order: {doc.name}
+Event: {method}
 Status Code: {response.status_code}
-
-Response:
-{response.text}
+Response: {response.text}
 """
         )
 
         response.raise_for_status()
 
-        frappe.msgprint("Pulse Sales Order update API hit successfully.")
+        frappe.msgprint("Pulse Sales Order updated successfully.")
 
     except Exception:
         frappe.log_error(
@@ -226,4 +237,71 @@ Response:
             message=frappe.get_traceback()
         )
 
-        frappe.msgprint("Pulse Sales Order update failed. Check Error Log.")
+        frappe.throw("Pulse Sales Order update failed. Check Error Log.")
+
+
+# def update_sales_order(doc, method=None):
+#     if doc.docstatus != 1:
+#         return
+
+#     if method != "manual_button" and not doc.get("amended_from"):
+#         return
+
+#     frappe.msgprint("Sales Order Update test")
+
+#     frappe.log_error(
+#         title="SALES ORDER UPDATE TRIGGERED",
+#         message=f"Sales Order: {doc.name}, Method: {method}, Amended From: {doc.get('amended_from')}"
+#     )
+
+#     try:
+#         pulse_so_id = doc.get("custom_pulse_so_id") or ""
+
+#         frappe.log_error(
+#             title="PULSE SO ID",
+#             message=pulse_so_id
+#         )
+
+#         if not pulse_so_id:
+#             frappe.log_error(
+#                 title="PULSE UPDATE STOPPED",
+#                 message=f"custom_pulse_so_id is empty for Sales Order: {doc.name}"
+#             )
+#             return
+
+#         config = frappe.get_single("Pulse Sales Configuration")
+#         payload = build_sales_order_payload(doc)
+
+#         frappe.log_error(
+#             title="PULSE UPDATE PAYLOAD",
+#             message=frappe.as_json(payload, indent=2)
+#         )
+
+#         token = get_token(config)
+#         response = post_sales_order(payload, token, pulse_so_id)
+
+#         if response.status_code == 401:
+#             token = pulse_login(config)
+#             response = post_sales_order(payload, token, pulse_so_id)
+
+#         frappe.log_error(
+#             title="PULSE UPDATE RESPONSE",
+#             message=f"""
+# Status Code: {response.status_code}
+
+# Response:
+# {response.text}
+# """
+#         )
+
+#         response.raise_for_status()
+
+#         frappe.msgprint("Pulse Sales Order update API hit successfully.")
+
+#     except Exception:
+#         frappe.log_error(
+#             title="PULSE SALES ORDER UPDATE ERROR",
+#             message=frappe.get_traceback()
+#         )
+
+#         frappe.msgprint("Pulse Sales Order update failed. Check Error Log.")

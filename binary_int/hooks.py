@@ -44,6 +44,9 @@ app_license = "mit"
  
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "Customer": "public/js/customer.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -129,9 +132,10 @@ app_license = "mit"
 # ---------------
 # Override standard doctype classes
  
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	"Project": "binary_int.overrides.project.CustomProject",
+	"Sales Invoice": "binary_int.overrides.sales_invoice.CustomSalesInvoice"
+}
  
 # Document Events
 # ---------------
@@ -148,10 +152,10 @@ doc_events = {
 			"binary_int.api.create_campaign.update_campaign"
 		]
 		# "after_save":"binary_int.api.update_campaign.update_campaign"
+	 },
+	"Sales Order":{
+		"on_update": "binary_int.api.update_sales_order.update_sales_order"
 	}
-	# "Sales Order":{
-	# 	"on_submit": "binary_int.api.update_sales_order.update_sales_order"
-	# }
 
 }
 
